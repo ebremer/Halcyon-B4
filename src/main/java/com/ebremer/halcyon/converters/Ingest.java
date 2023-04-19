@@ -1,5 +1,7 @@
 package com.ebremer.halcyon.converters;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.ParameterException;
 import com.ebremer.beakgraph.rdf.BeakWriter;
 import com.ebremer.halcyon.HalcyonSettings;
 import com.ebremer.ns.EXIF;
@@ -61,15 +63,13 @@ public class Ingest {
         }
     }
     
-    public void Process(String source, boolean optimize, String destination) throws FileNotFoundException, IOException { 
-        System.out.println("PROCESSING : "+source+" ===> "+destination);
-        File src = new File(source);
-        File dest = new File(destination);
+    public void Process(File src, boolean optimize, File dest) throws FileNotFoundException, IOException { 
+        System.out.println("PROCESSING : "+src+" ===> "+dest);
         if (!dest.exists()) {
             dest.mkdirs();
         }
         if (src.isDirectory()) {
-            Path path = Path.of(source);
+            Path path = src.toPath();
             Files
                 .walk(path)
                 .filter(f->!f.toFile().isDirectory())
@@ -81,7 +81,7 @@ public class Ingest {
                     String nd = p.toString();
                     nd = nd.substring(0,nd.length()-".ttl.gz".length())+".zip";
                     Path nnd = Path.of(nd);
-                    nnd = Path.of(destination,src.toPath().relativize(nnd).toString());
+                    nnd = Path.of(dest.toString(),src.toPath().relativize(nnd).toString());
                     File nndf = nnd.toFile();
                     if (!nndf.exists()) {
                         OneFile(p.toFile(), nnd.toFile(), optimize);
@@ -97,21 +97,22 @@ public class Ingest {
     public static void main(String[] args) throws FileNotFoundException, IOException {     
         ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
         root.setLevel(ch.qos.logback.classic.Level.OFF);
-        //String[] temp = {"D:\\luke\\load2\\rdf.gmm","D:\\luke\\load2\\zip-cluster_20_json_gmm","heatmap"};
-        //String[] temp = {"D:\\tcga\\nuclearsegmentation2019\\rdf","D:\\tcga\\nuclearsegmentation2019\\zip","segmentation"};
-        //args = temp;
-        if (args.length == 3) {
-            String src = args[0];
-            String dest = args[1];
-            boolean optimize = args[2].equals("heatmap");
-            new Ingest().Process(src, optimize, dest);
-        } else {
-            System.out.println("Halcyon ----------------------------------------------------");
-            System.out.println("ingest - version : "+HalcyonSettings.VERSION);
-            System.out.println("""
-                                Usage:
-                                ingest <source> <destination> (heatmap|segmentation)
-                            """);
+        IngestParameters params = new IngestParameters();   
+        JCommander jc = JCommander.newBuilder().addObject(params).build();
+        jc.setProgramName(HalcyonSettings.VERSION+"\ningest");    
+        try {
+            jc.parse(args);
+            switch (args.length) {
+                case 3:
+                    new Ingest().Process(params.src, params.optimize, params.dest);
+                    break;
+                default:
+                    jc.usage();
+                    break;
+            }
+        } catch (ParameterException ex) {
+            jc.usage();
+            System.out.println(ex.getMessage());
         }
     }
 }

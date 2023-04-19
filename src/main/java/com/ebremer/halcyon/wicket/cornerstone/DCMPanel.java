@@ -22,5 +22,4 @@ public class DCMPanel extends Panel {
         response.render(JavaScriptHeaderItem.forReference(DCMJavaScriptResourceReference.get()));
         response.render(JavaScriptHeaderItem.forReference(example.get()));
     }
-    
 }
